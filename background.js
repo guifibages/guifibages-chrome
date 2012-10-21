@@ -1,4 +1,4 @@
-var username, password, status=0, logininfo;
+var username, password, status=0, logininfo = {};
 
 function loadPac(pacdata)
 {
@@ -18,23 +18,24 @@ function resetProxy()
 {
   var config = {
     mode: "direct",
-    pacScript: {
-      data: pacdata
-    }
   };
 
   chrome.proxy.settings.set(
       {value: config, scope: 'regular'},
       function() {});
-
+  handleProxyAuth(false);
 }
 
 function sendLogin(ignorestatus)
 {
-  if (status==0 && !ignorestatus) {
+  if (status!=200) {
     resetProxy();
+  }
+  if (status==0  && !ignorestatus) {
     return;
   }
+
+
   console.log("sendLogin");
   if (password.length == 0) {
     status = 401;
@@ -53,8 +54,10 @@ function sendLogin(ignorestatus)
       case 200:
         window.setTimeout(sendLogin,10000);
         logininfo = JSON.parse(this.responseText);
-        if ('pac' in logininfo)      
-          loadPac(logininfo.pac)
+        if ('pac' in logininfo) {
+          loadPac(logininfo.pac);
+          handleProxyAuth();
+        }     
         break;
     }
     if (status != this.status) {
@@ -64,25 +67,61 @@ function sendLogin(ignorestatus)
   }
 }
 
+
+/*
+ * Beginning of Proxy Auth Handling
+ */
+function handleProxyAuth(unregister) {
+  if (unregister === false) {
+    chrome.webRequest.onAuthRequired.removeListener(
+      handleAuthRequest,
+      {urls: ["<all_urls>"]},
+      ["asyncBlocking"]
+    );
+  }
+  var gPendingCallbacks = [];
+
+  function processPendingCallbacks() {
+    console.log("Calling back with credentials");
+    var callback = gPendingCallbacks.pop();
+    if (callback) {
+      console.log(["Authenticating to proxy", {username: username,
+      password: logininfo.otp}]);
+      callback({authCredentials: {username: username,
+      password: logininfo.otp}});
+
+    }
+  }
+  function handleAuthRequest(details, callback) {
+    console.log(['handleAuthRequest',details]);
+    /*
+     * Només afegim la petició a la cua (gPendingCallbacks) si es cumpleixen tres factors:
+     *  1) La autenticació és per un proxi
+     *  2) El hostname que demana l'autenticació conté el nostre domini
+     *  3) Tenim un valor otp
+     */
+    if (details.isProxy &&
+        details.challenger.host.indexOf("guifibages.net") >=0 &&
+        'otp' in logininfo) {
+      gPendingCallbacks.push(callback);
+    }
+    processPendingCallbacks();
+  }
+
+
+
+  chrome.webRequest.onAuthRequired.addListener(
+    handleAuthRequest,
+    {urls: ["<all_urls>"]},
+    ["asyncBlocking"]
+  );
+}
+
+// End of proxy auth handling
+
 chrome.extension.onMessage.addListener(
   function(request, sender, sendResponse) {
-    console.log(sender.tab ?
-                "from a content script:" + sender.tab.url :
-                "from the extension");
     if (request.doLogin) {
       sendLogin(true);
     }
   });
-
-chrome.webRequest.onAuthRequired.addListener(
-  function(details) {
-    console.log(details);
-    if (details.isProxy)
-      return {authCredentials: {username: username, password: "foobar"}}
-  },
-  // filters
-  {urls: [
-    "http://guifibages.net:8080/"]},
-  //Extra
-  ["blocking"]
-);

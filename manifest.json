@@ -1,6 +1,6 @@
 {
   "name": "Guifibages",
-  "version": "0.3",
+  "version": "0.4",
   "manifest_version": 2,
 
   // "default_locale": "ca",
@@ -19,8 +19,10 @@
     "webRequest",
     "webRequestBlocking",
     "https://guifibages.net/api/*",
-    "*://*.guifibages.net/",
-    "proxy"
+    "*://*.guifibages.net/*",
+    "proxy",
+    "tabs",
+    "http://*/*"
   ],
   "content_security_policy": "script-src 'self' https://guifibages.net; object-src 'self'"
 }
