@@ -1,4 +1,4 @@
-var username, password, status=0;
+var username, password, status=0, logininfo;
 
 function loadPac(pacdata)
 {
@@ -29,9 +29,10 @@ function resetProxy()
 
 }
 
-function sendLogin()
+function sendLogin(ignorestatus)
 {
-  if (status==0) {
+  if (status==0 && !ignorestatus) {
+    resetProxy();
     return;
   }
   console.log("sendLogin");
@@ -51,9 +52,9 @@ function sendLogin()
     switch (this.status) {
       case 200:
         window.setTimeout(sendLogin,10000);
-        if (this.responseText.substr(0,24) == 'function FindProxyForURL') {
-          loadPac(this.responseText)
-        }
+        logininfo = JSON.parse(this.responseText);
+        if ('pac' in logininfo)      
+          loadPac(logininfo.pac)
         break;
     }
     if (status != this.status) {
@@ -69,8 +70,7 @@ chrome.extension.onMessage.addListener(
                 "from a content script:" + sender.tab.url :
                 "from the extension");
     if (request.doLogin) {
-      status=1;
-      sendLogin();
+      sendLogin(true);
     }
   });
 

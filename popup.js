@@ -1,8 +1,8 @@
 function doLogin()
 {
   console.log("Entrant a doLogin");
-  chrome.extension.getBackgroundPage().username = getElementValue('username');
-  chrome.extension.getBackgroundPage().password = getElementValue('password');
+  chrome.extension.getBackgroundPage().username = document.querySelector('input#username').value;
+  chrome.extension.getBackgroundPage().password = document.querySelector('input#password').value;
   chrome.extension.sendMessage({'doLogin': true})
 }
 
@@ -13,14 +13,16 @@ function doLogout()
   updatePopup();
 }
 
-function getElementValue(elementId)
-{
-  return document.getElementById(elementId).value;
-}
-
 document.addEventListener('DOMContentLoaded', function () {
   updatePopup();
   document.querySelector('button#login').addEventListener('click', doLogin);
+  document.querySelector('input#password').addEventListener('keydown', function(e) {
+   if (e.keyCode == 13) {
+      console.log("Captura de teclado");
+      doLogin();
+      return false; // ignore default event
+   }
+});
   document.querySelector('button#logout').addEventListener('click', doLogout);
 });
 
